@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title></title>
+    <script src="tilewindcss3.4.17.js"></script>
+    <link href="font-awesome.min.css" rel="stylesheet" />
+
+    <script src="questions_config.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#2563eb",
+              secondary: "#64748b",
+              success: "#10b981",
+              danger: "#ef4444",
+              warning: "#f59e0b",
+              light: "#f8fafc",
+              dark: "#1e293b",
+            },
+            fontFamily: {
+              sans: ["Inter", "PingFang SC", "Microsoft YaHei", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+
+    <style type="text/tailwindcss">
+      @layer utilities {
+        .content-auto {
+          content-visibility: auto;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .question-card {
+          backdrop-filter: blur(10px);
+          background: rgba(255, 255, 255, 0.95);
+        }
+        .option-hover {
+          transition: all 0.2s ease;
+        }
+        .option-hover:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+      }
+
+      .text-sm {
+        font-size: 0.75rem;
+        line-height: 1rem;
+      }
+
+      /* 移动端优化 */
+      @media (max-width: 640px) {
+        #prevBtn,
+        #nextBtn {
+          min-width: 50px;
+          width: 50px;
+          height: 50px;
+          padding: 0;
+        }
+
+        #prevBtn span,
+        #nextBtn span {
+          display: none;
+        }
+
+        #prevBtn i,
+        #nextBtn i {
+          margin: 0;
+          font-size: 18px;
+        }
+
+        .flex-1.mx-6 {
+          margin: 0 10px;
+        }
+
+        #progressText {
+          min-width: 40px;
+          font-size: 12px;
+        }
+
+        span.text-sm.text-gray-600 {
+          font-size: 12px;
+        }
+      }
+
+      /* 小屏手机优化 */
+      @media (max-width: 360px) {
+        #prevBtn,
+        #nextBtn {
+          min-width: 45px;
+          width: 45px;
+          height: 45px;
+        }
+
+        .flex-1.mx-6 {
+          margin: 0 5px;
+        }
+      }
+    </style>
+
+    <!-- 题目数据 -->
+    <script>
+      // 全局变量
+      let currentQuestionIndex = 0;
+      let filteredQuestions = [...questions];
+      let userAnswers = {};
+      let showAnswer = false;
+    </script>
+  </head>
+  <body
+    class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 font-sans"
+  >
+    <!-- 顶部导航栏 -->
+    <header
+      class="bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-gray-200"
+    >
+      <div class="container mx-auto px-4 py-3">
+        <div class="flex items-center justify-between">
+          <h1 id="headerTitle" class="text-xl font-bold text-primary"></h1>
+            <!-- <i class="fa fa-book mr-2"></i> -->
+          </h1>
+          <div class="flex items-center space-x-2">
+            <button
+              id="typeFilterBtn"
+              class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <i class="fa fa-filter mr-1"></i>
+              全部类型
+            </button>
+            <button
+              id="jumpBtn"
+              class="px-3 py-1.5 bg-secondary text-white rounded-lg text-sm font-medium hover:bg-secondary/90 transition-colors"
+            >
+              <i class="fa fa-exchange mr-1"></i>
+              跳转
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主内容区域 -->
+    <main class="container mx-auto px-4 py-6">
+      <!-- 题目信息栏 -->
+      <div
+        class="bg-white/80 backdrop-blur-sm rounded-xl p-4 mb-6 shadow-sm border border-gray-200"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-4">
+            <span class="text-sm text-gray-1000"
+              >题目
+              <span id="currentQuestionNum" class="font-bold text-primary"
+                >1</span
+              >
+              /
+              <span id="totalQuestionNum" class="font-bold text-primary"
+                >{{TOTAL_QUESTIONS}}</span
+              ></span
+            >
+            <span
+              id="questionTypeBadge"
+              class="px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium"
+              >单选题</span
+            >
+          </div>
+          <div class="flex items-center space-x-2">
+            <button
+              id="showAnswerBtn"
+              class="px-3 py-1.5 bg-warning text-white rounded-lg text-sm font-medium hover:bg-warning/90 transition-colors"
+            >
+              <i class="fa fa-eye mr-1"></i>
+              显示答案
+            </button>
+            <button
+              id="resetBtn"
+              class="px-3 py-1.5 bg-gray-500 text-white rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors"
+            >
+              <i class="fa fa-bullseye mr-1"></i>
+              重置
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 题目卡片 -->
+      <div
+        class="question-card rounded-2xl p-6 mb-6 shadow-lg border border-gray-200 min-h-[500px]"
+      >
+        <div class="mb-6">
+          <h2
+            id="questionContent"
+            class="text-lg md:text-xl font-semibold text-gray-800 leading-relaxed"
+          >
+            题目内容
+          </h2>
+        </div>
+
+        <!-- 选项区域 -->
+        <div id="optionsContainer" class="space-y-3 mb-8">
+          <!-- 选项将通过JavaScript动态生成 -->
+        </div>
+
+        <!-- 答案显示区域 -->
+        <div id="answerContainer" class="hidden">
+          <div class="bg-success/10 border-l-4 border-success p-4 rounded-r-lg">
+            <div class="flex items-start">
+              <i
+                class="fa fa-check-circle text-success text-lg mr-3 mt-0.5"
+              ></i>
+              <div>
+                <h3 class="font-semibold text-success mb-2">正确答案</h3>
+                <p id="correctAnswer" class="text-gray-700 font-medium">A</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部控制栏 -->
+      <div
+        class="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-gray-200"
+      >
+        <div class="flex items-center justify-between">
+          <!-- 上一题按钮 - 响应式设计 -->
+          <button
+            id="prevBtn"
+            class="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]"
+          >
+            <i class="fa fa-chevron-left mr-2"></i>
+            <span>上一题</span>
+          </button>
+
+          <!-- 进度显示区域 -->
+          <div class="flex-1 mx-6">
+            <div class="flex items-center justify-center space-x-4">
+              <span class="text-sm text-gray-600">进度</span>
+              <div class="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  id="progressBar"
+                  class="h-full bg-primary rounded-full transition-all duration-300"
+                  style="width: 0%"
+                ></div>
+              </div>
+              <span
+                id="progressText"
+                class="text-sm font-medium text-gray-700 min-w-[50px] text-center"
+                >0%</span
+              >
+            </div>
+          </div>
+
+          <!-- 下一题按钮 - 响应式设计 -->
+          <button
+            id="nextBtn"
+            class="px-6 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-all duration-200 flex items-center justify-center min-w-[120px]"
+          >
+            <span>下一题</span>
+            <i class="fa fa-chevron-right ml-2"></i>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- 类型筛选模态框 -->
+    <div
+      id="typeFilterModal"
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4"
+    >
+      <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <h3 class="text-xl font-bold text-gray-800 mb-4 text-center">
+          <i class="fa fa-filter mr-2 text-primary"></i>
+          题目类型筛选
+        </h3>
+        <div class="space-y-3">
+          <button
+            class="type-filter-btn w-full px-4 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
+            data-type="all"
+          >
+            <i class="fa fa-check mr-2"></i>
+            全部类型 ({{TOTAL_QUESTIONS}}题)
+          </button>
+          <button
+            class="type-filter-btn w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+            data-type="单选题"
+          >
+            <i class="fa fa-dot-circle-o mr-2"></i>
+            单选题 ({{SINGLE_CHOICE}}题)
+          </button>
+          <button
+            class="type-filter-btn w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+            data-type="多选题"
+          >
+            <i class="fa fa-check-square-o mr-2"></i>
+            多选题 ({{MULTIPLE_CHOICE}}题)
+          </button>
+          <button
+            class="type-filter-btn w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+            data-type="判断题"
+          >
+            <i class="fa fa-check mr-2"></i>
+            判断题 ({{TRUE_FALSE}}题)
+          </button>
+        </div>
+        <button
+          id="closeFilterModal"
+          class="w-full mt-6 px-4 py-3 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 transition-colors"
+        >
+          关闭
+        </button>
+      </div>
+    </div>
+
+    <!-- 跳转模态框 -->
+    <div
+      id="jumpModal"
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4"
+    >
+      <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <h3 class="text-xl font-bold text-gray-800 mb-4 text-center">
+          <i class="fa fa-jump mr-2 text-primary"></i>
+          跳转到题目
+        </h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2"
+              >题目编号</label
+            >
+            <div class="flex items-center space-x-2">
+              <input
+                type="number"
+                id="jumpToQuestion"
+                min="1"
+                max="{{TOTAL_QUESTIONS}}"
+                value="1"
+                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              />
+              <span class="text-sm text-gray-500">/ {{TOTAL_QUESTIONS}}</span>
+            </div>
+          </div>
+          <div class="flex space-x-3">
+            <button
+              id="jumpConfirmBtn"
+              class="flex-1 px-4 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
+            >
+              <i class="fa fa-check mr-2"></i>
+              确定
+            </button>
+            <button
+              id="closeJumpModal"
+              class="flex-1 px-4 py-3 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 transition-colors"
+            >
+              <i class="fa fa-times mr-2"></i>
+              取消
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // 读取配置并应用
+      const cfg = window.pageConfig;
+
+      // 设置页面标题
+      document.title = cfg.title;
+
+      // 初始化页面
+      document.addEventListener("DOMContentLoaded", function () {
+        const headerTitle = document.querySelector("#headerTitle");
+        if (headerTitle) {
+          headerTitle.innerHTML = `<i class="fa fa-book mr-2"></i>${cfg.headerTitle}`;
+        }
+        updateQuestionDisplay();
+        updateProgress();
+        updateTypeCounts();
+
+        // 绑定事件监听器
+        bindEventListeners();
+      });
+
+      function bindEventListeners() {
+        // 上一题按钮
+        document
+          .getElementById("prevBtn")
+          .addEventListener("click", function () {
+            if (currentQuestionIndex > 0) {
+              // 清除当前题目的用户答案
+              const currentQuestion = filteredQuestions[currentQuestionIndex];
+              if (userAnswers[currentQuestion.id]) {
+                delete userAnswers[currentQuestion.id];
+              }
+
+              showAnswer = false;
+              currentQuestionIndex--;
+              updateQuestionDisplay();
+              updateNavigationButtons();
+              updateProgress();
+              hideAnswer();
+            }
+          });
+
+        // 下一题按钮
+        document
+          .getElementById("nextBtn")
+          .addEventListener("click", function () {
+            if (currentQuestionIndex < filteredQuestions.length - 1) {
+              // 清除当前题目的用户答案
+              const currentQuestion = filteredQuestions[currentQuestionIndex];
+              if (userAnswers[currentQuestion.id]) {
+                delete userAnswers[currentQuestion.id];
+              }
+
+              showAnswer = false;
+              currentQuestionIndex++;
+              updateQuestionDisplay();
+              updateNavigationButtons();
+              updateProgress();
+              hideAnswer();
+            }
+          });
+
+        // 显示答案按钮
+        document
+          .getElementById("showAnswerBtn")
+          .addEventListener("click", function () {
+            showAnswer = true;
+            updateQuestionDisplay();
+            showAnswerContainer();
+          });
+
+        // 重置按钮
+        document
+          .getElementById("resetBtn")
+          .addEventListener("click", function () {
+            userAnswers = {};
+            showAnswer = false;
+            hideAnswer();
+            updateQuestionDisplay();
+          });
+
+        // 类型筛选按钮
+        document
+          .getElementById("typeFilterBtn")
+          .addEventListener("click", function () {
+            document
+              .getElementById("typeFilterModal")
+              .classList.remove("hidden");
+            document.getElementById("typeFilterModal").classList.add("flex");
+          });
+
+        // 关闭筛选模态框
+        document
+          .getElementById("closeFilterModal")
+          .addEventListener("click", function () {
+            closeTypeFilterModal();
+          });
+
+        // 类型筛选按钮
+        document.querySelectorAll(".type-filter-btn").forEach((btn) => {
+          btn.addEventListener("click", function () {
+            const type = this.dataset.type;
+            filterQuestionsByType(type);
+            closeTypeFilterModal();
+          });
+        });
+
+        // 跳转按钮
+        document
+          .getElementById("jumpBtn")
+          .addEventListener("click", function () {
+            const jumpModal = document.getElementById("jumpModal");
+            const jumpInput = document.getElementById("jumpToQuestion");
+
+            // 显示模态框
+            jumpModal.classList.remove("hidden");
+            jumpModal.classList.add("flex");
+
+            // 设置输入框属性
+            jumpInput.value = currentQuestionIndex + 1;
+            jumpInput.min = 1;
+            jumpInput.max = filteredQuestions.length;
+            jumpInput.step = 1;
+
+            // 更新总题目数显示
+            updateJumpModalTotalQuestions();
+
+            // 聚焦到输入框并选中内容
+            setTimeout(() => {
+              jumpInput.focus();
+              jumpInput.select();
+            }, 100);
+          });
+
+        // 关闭跳转模态框
+        document
+          .getElementById("closeJumpModal")
+          .addEventListener("click", function () {
+            closeJumpModal();
+          });
+
+        // 确认跳转
+        document
+          .getElementById("jumpConfirmBtn")
+          .addEventListener("click", function () {
+            const questionNum = parseInt(
+              document.getElementById("jumpToQuestion").value
+            );
+            if (questionNum >= 1 && questionNum <= filteredQuestions.length) {
+              currentQuestionIndex = questionNum - 1;
+              updateQuestionDisplay();
+              updateNavigationButtons();
+              updateProgress();
+              hideAnswer();
+              closeJumpModal();
+            }
+          });
+
+        // 点击模态框背景关闭
+        document
+          .getElementById("typeFilterModal")
+          .addEventListener("click", function (e) {
+            if (e.target === this) closeTypeFilterModal();
+          });
+
+        document
+          .getElementById("jumpModal")
+          .addEventListener("click", function (e) {
+            if (e.target === this) closeJumpModal();
+          });
+
+        // 键盘事件
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "ArrowLeft") {
+            document.getElementById("prevBtn").click();
+          } else if (e.key === "ArrowRight") {
+            document.getElementById("nextBtn").click();
+          } else if (
+            e.key === "Enter" &&
+            document.getElementById("jumpModal").classList.contains("flex")
+          ) {
+            document.getElementById("jumpConfirmBtn").click();
+          } else if (e.key === "Escape") {
+            closeTypeFilterModal();
+            closeJumpModal();
+          }
+        });
+      }
+
+      // 更新跳转模态框中的总题目数显示
+      function updateJumpModalTotalQuestions() {
+        const totalQuestionsElement = document.querySelector(
+          "#jumpModal .text-gray-500"
+        );
+        if (totalQuestionsElement) {
+          // 替换模板变量为实际的题目总数
+          totalQuestionsElement.textContent = `/ ${filteredQuestions.length}`;
+        }
+      }
+
+      function updateQuestionDisplay() {
+        const question = filteredQuestions[currentQuestionIndex];
+        const questionNumber = currentQuestionIndex + 1;
+
+        // // 清除当前题目的用户答案（修复下一题时自动选中答案的问题）
+        // if (userAnswers[question.id]) {
+        //     delete userAnswers[question.id];
+        // }
+
+        // 更新题目内容
+        document.getElementById(
+          "questionContent"
+        ).textContent = `${questionNumber}. ${question.content}`;
+
+        // 更新题目类型徽章
+        const typeBadge = document.getElementById("questionTypeBadge");
+        typeBadge.textContent = question.type;
+
+        // 根据题目类型设置不同的颜色
+        typeBadge.className = "px-2 py-1 rounded-full text-xs font-medium";
+        if (question.type === "单选题") {
+          typeBadge.classList.add("bg-blue-100", "text-blue-800");
+        } else if (question.type === "多选题") {
+          typeBadge.classList.add("bg-green-100", "text-green-800");
+        } else if (question.type === "判断题") {
+          typeBadge.classList.add("bg-yellow-100", "text-yellow-800");
+        }
+
+        // 生成选项
+        generateOptions(question);
+
+        // 更新题目计数
+        document.getElementById("currentQuestionNum").textContent =
+          questionNumber;
+        document.getElementById("totalQuestionNum").textContent =
+          filteredQuestions.length;
+
+        // 更新导航按钮状态
+        updateNavigationButtons();
+      }
+
+      function generateOptions(question) {
+        const container = document.getElementById("optionsContainer");
+        container.innerHTML = "";
+
+        const options = [
+          { letter: "A", content: question.optionA },
+          { letter: "B", content: question.optionB },
+          { letter: "C", content: question.optionC },
+          { letter: "D", content: question.optionD },
+        ];
+
+        options.forEach((option) => {
+          if (option.content.trim()) {
+            const optionDiv = document.createElement("div");
+            optionDiv.className =
+              "option-hover p-4 border border-gray-200 rounded-lg cursor-pointer hover:border-primary hover:bg-primary/5 transition-all duration-200";
+
+            // 检查用户是否选中了这个选项
+            const isSelected =
+              userAnswers[question.id] &&
+              userAnswers[question.id].includes(option.letter);
+
+            // 如果用户选中了这个选项，添加选中样式
+            if (isSelected) {
+              optionDiv.classList.add("option-selected");
+            }
+
+            // 如果显示答案，标记正确答案
+            if (showAnswer && question.answer.includes(option.letter)) {
+              optionDiv.classList.add("border-success", "bg-success/10");
+            } else if (
+              showAnswer &&
+              isSelected &&
+              !question.answer.includes(option.letter)
+            ) {
+              optionDiv.classList.add("border-danger", "bg-danger/10");
+            }
+
+            optionDiv.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center mr-3 font-bold text-sm option-letter ${
+                              showAnswer &&
+                              question.answer.includes(option.letter)
+                                ? "bg-success text-white"
+                                : showAnswer &&
+                                  isSelected &&
+                                  !question.answer.includes(option.letter)
+                                ? "bg-danger text-white"
+                                : isSelected
+                                ? "bg-primary text-white"
+                                : "bg-gray-100 text-gray-700"
+                            }">
+                                ${option.letter}
+                            </div>
+                            <span class="text-gray-800 leading-relaxed">${
+                              option.content
+                            }</span>
+                        </div>
+                    `;
+
+            // 只有在不显示答案时才添加点击事件
+            if (!showAnswer) {
+              optionDiv.addEventListener("click", function () {
+                selectOption(question.id, option.letter);
+              });
+            }
+
+            container.appendChild(optionDiv);
+          }
+        });
+      }
+
+      function selectOption(questionId, optionLetter) {
+        if (!userAnswers[questionId]) {
+          userAnswers[questionId] = "";
+        }
+
+        // 对于单选题，直接替换答案
+        if (filteredQuestions[currentQuestionIndex].type === "单选题") {
+          userAnswers[questionId] = optionLetter;
+        }
+        // 对于多选题，切换选项
+        else if (filteredQuestions[currentQuestionIndex].type === "多选题") {
+          if (userAnswers[questionId].includes(optionLetter)) {
+            userAnswers[questionId] = userAnswers[questionId].replace(
+              optionLetter,
+              ""
+            );
+          } else {
+            userAnswers[questionId] += optionLetter;
+          }
+        }
+        // 对于判断题，切换对错
+        else if (filteredQuestions[currentQuestionIndex].type === "判断题") {
+          userAnswers[questionId] = optionLetter;
+        }
+
+        updateQuestionDisplay();
+      }
+
+      function showAnswerContainer() {
+        const container = document.getElementById("answerContainer");
+        const answerElement = document.getElementById("correctAnswer");
+        const question = filteredQuestions[currentQuestionIndex];
+
+        // 格式化答案显示
+        let answerText = "";
+        if (question.type === "单选题" || question.type === "判断题") {
+          answerText = question.answer;
+        } else if (question.type === "多选题") {
+          answerText = question.answer.split("").join("、");
+        }
+
+        answerElement.textContent = answerText;
+        container.classList.remove("hidden");
+      }
+
+      function hideAnswer() {
+        showAnswer = false;
+        document.getElementById("answerContainer").classList.add("hidden");
+      }
+
+      function updateNavigationButtons() {
+        const prevBtn = document.getElementById("prevBtn");
+        const nextBtn = document.getElementById("nextBtn");
+
+        // 更新上一题按钮状态
+        if (currentQuestionIndex === 0) {
+          prevBtn.disabled = true;
+          prevBtn.classList.add(
+            "opacity-50",
+            "cursor-not-allowed",
+            "bg-gray-200",
+            "text-gray-500"
+          );
+          prevBtn.classList.remove(
+            "bg-gray-300",
+            "hover:bg-gray-400",
+            "text-gray-700"
+          );
+        } else {
+          prevBtn.disabled = false;
+          prevBtn.classList.remove(
+            "opacity-50",
+            "cursor-not-allowed",
+            "bg-gray-200",
+            "text-gray-500"
+          );
+          prevBtn.classList.add(
+            "bg-gray-300",
+            "hover:bg-gray-400",
+            "text-gray-700"
+          );
+        }
+
+        // 更新下一题按钮状态
+        if (currentQuestionIndex === filteredQuestions.length - 1) {
+          nextBtn.disabled = true;
+          nextBtn.classList.add(
+            "opacity-50",
+            "cursor-not-allowed",
+            "bg-gray-400"
+          );
+          nextBtn.classList.remove("bg-primary", "hover:bg-primary/90");
+        } else {
+          nextBtn.disabled = false;
+          nextBtn.classList.remove(
+            "opacity-50",
+            "cursor-not-allowed",
+            "bg-gray-400"
+          );
+          nextBtn.classList.add("bg-primary", "hover:bg-primary/90");
+        }
+      }
+
+      // 从 updateProgress 函数中删除进度文本更新代码
+      function updateProgress() {
+        const progress =
+          ((currentQuestionIndex + 1) / filteredQuestions.length) * 100;
+        document.getElementById("progressBar").style.width = progress + "%";
+
+        const progressText = document.getElementById("progressText");
+        if (progressText) {
+          progressText.textContent = Math.round(progress) + "%";
+        }
+      }
+
+      function filterQuestionsByType(type) {
+        if (type === "all") {
+          filteredQuestions = [...questions];
+          document.getElementById("typeFilterBtn").innerHTML =
+            '<i class="fa fa-filter mr-1"></i>全部类型';
+        } else {
+          filteredQuestions = questions.filter((q) => q.type === type);
+          document.getElementById(
+            "typeFilterBtn"
+          ).innerHTML = `<i class="fa fa-filter mr-1"></i>${type}`;
+        }
+
+        currentQuestionIndex = 0;
+        userAnswers = {};
+        showAnswer = false;
+        hideAnswer();
+
+        updateQuestionDisplay();
+        updateNavigationButtons();
+        updateProgress();
+        updateTypeCounts();
+
+        // 更新类型筛选按钮的高亮状态
+        updateTypeFilterButtonHighlight(type);
+      }
+
+      // 添加更新类型筛选按钮高亮状态的函数
+      function updateTypeFilterButtonHighlight(selectedType) {
+        // 获取所有类型筛选按钮
+        const buttons = document.querySelectorAll(".type-filter-btn");
+
+        buttons.forEach((btn) => {
+          const btnType = btn.dataset.type;
+
+          // 重置所有按钮样式
+          btn.classList.remove("bg-primary", "text-white");
+          btn.classList.add("bg-gray-100", "text-gray-700");
+
+          // 为选中的按钮添加高亮样式
+          if (btnType === selectedType) {
+            btn.classList.remove("bg-gray-100", "text-gray-700");
+            btn.classList.add("bg-primary", "text-white");
+          }
+        });
+      }
+
+      // 在类型筛选按钮点击事件中也调用更新函数
+      document.querySelectorAll(".type-filter-btn").forEach((btn) => {
+        btn.addEventListener("click", function () {
+          const type = this.dataset.type;
+          filterQuestionsByType(type);
+          closeTypeFilterModal();
+        });
+      });
+
+      function updateTypeCounts() {
+        const typeCounts = {};
+        questions.forEach((q) => {
+          typeCounts[q.type] = (typeCounts[q.type] || 0) + 1;
+        });
+
+        // 更新筛选模态框中的计数
+        document.querySelector(
+          '[data-type="all"]'
+        ).innerHTML = `<i class="fa fa-check mr-2"></i>全部类型 (${questions.length}题)`;
+        document.querySelector(
+          '[data-type="单选题"]'
+        ).innerHTML = `<i class="fa fa-dot-circle-o mr-2"></i>单选题 (${
+          typeCounts["单选题"] || 0
+        }题)`;
+        document.querySelector(
+          '[data-type="多选题"]'
+        ).innerHTML = `<i class="fa fa-check-square-o mr-2"></i>多选题 (${
+          typeCounts["多选题"] || 0
+        }题)`;
+        document.querySelector(
+          '[data-type="判断题"]'
+        ).innerHTML = `<i class="fa fa-check mr-2"></i>判断题 (${
+          typeCounts["判断题"] || 0
+        }题)`;
+      }
+
+      function closeTypeFilterModal() {
+        document.getElementById("typeFilterModal").classList.add("hidden");
+        document.getElementById("typeFilterModal").classList.remove("flex");
+      }
+
+      function closeJumpModal() {
+        document.getElementById("jumpModal").classList.add("hidden");
+        document.getElementById("jumpModal").classList.remove("flex");
+      }
+
+      // 添加触摸滑动支持
+      let touchStartX = 0;
+      let touchEndX = 0;
+
+      document.addEventListener("touchstart", function (e) {
+        touchStartX = e.changedTouches[0].screenX;
+      });
+
+      document.addEventListener("touchend", function (e) {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+      });
+
+      function handleSwipe() {
+        const swipeThreshold = 50;
+        const diff = touchStartX - touchEndX;
+
+        if (Math.abs(diff) > swipeThreshold) {
+          if (diff > 0) {
+            // 向左滑动，下一题
+            document.getElementById("nextBtn").click();
+          } else {
+            // 向右滑动，上一题
+            document.getElementById("prevBtn").click();
+          }
+        }
+      }
+    </script>
+  </body>
+</html>
