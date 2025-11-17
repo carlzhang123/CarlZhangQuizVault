@@ -33,7 +33,7 @@
 ## 快速开始
 ### 1. 克隆仓库
 ```bash
-git clone https://github.com/your-username/CarlZhangQuizVault.git
+git clone https://github.com/carlzhang123/CarlZhangQuizVault.git
 cd CarlZhangQuizVault
 ```
 
