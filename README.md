@@ -56,7 +56,7 @@ A lightweight, mobile-friendly quiz application designed for seamless question p
 
 
 ```
-git clone https://github.com/your-username/CarlZhangQuizVault.git
+git clone https://github.com/carlzhang123/CarlZhangQuizVault.git
 
 cd CarlZhangQuizVault
 ```
